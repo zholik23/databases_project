@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Feed</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #f0f2f5;
+        }
+        .feed-container {
+            max-width: 800px;
+            margin: auto;
+            padding-top: 20px;
+        }
+        .post-card {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            padding: 15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .post-author {
+            font-weight: bold;
+        }
+        .post-content {
+            margin: 10px 0;
+        }
+        .post-date {
+            font-size: 0.9em;
+            color: gray;
+        }
+        .popular-combinations {
+            margin-bottom: 20px;
+        }
+        .combination-item {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        .navbar {
+            margin-bottom: 20px;
+        }
+        .login-btn {
+            margin-left: auto;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">SNACKPICK</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/">Main</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" onclick="window.location.href='/ai-picker'">AI picker</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" onclick="window.location.href='/home'">Blogs</a>
+                    </li>
+                </ul> 
+                {% if logged_in %}
+                    <button class="btn btn-outline-danger  login-btn" type="button" onclick="window.location.href='/logout'">Logout</button>
+                {% else %}
+                    <button class="btn btn-outline-success login-btn" type="button" onclick="window.location.href='/login'">Login</button>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Popular Combinations Section -->
+    <div class="feed-container">
+        <h2 class="text-center">Popular Combinations</h2>
+        <div id="popularCombinationsCarousel" class="carousel slide" data-bs-ride="carousel">
+            <div class="carousel-inner" id="popular-combinations">
+                <div class="text-center text-muted">Loading popular combinations...</div>
+            </div>
+            <button class="carousel-control-prev" type="button" data-bs-target="#popularCombinationsCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Previous</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#popularCombinationsCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Next</span>
+            </button>
+        </div>
+    </div>
+    <!-- Feed Section -->
+    <div class="feed-container">
+        <h2 class="text-center">Social Feed</h2>
+        <div id="feed">
+            <div class="text-center text-muted">Loading posts...</div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // Load popular combinations
+        document.addEventListener('DOMContentLoaded', function () {
+            fetch('/api/popularcombinations')
+            .then(response => response.json())
+            .then(data => {
+                const carouselInner = document.getElementById('popular-combinations');
+                carouselInner.innerHTML = ''; // Clear loading message
+
+                if (data.error) {
+                    carouselInner.innerHTML = `<div class="text-danger text-center">${data.error}</div>`;
+                    return;
+                }
+
+                if (data.length === 0) {
+                    carouselInner.innerHTML = '<div class="text-center">No popular combinations available.</div>';
+                    return;
+                }
+
+                // Generate carousel items
+                data.forEach((combo, index) => {
+                    const isActive = index === 0 ? 'active' : ''; // Make the first item active
+                    const combinationItem = `
+                        <div class="carousel-item ${isActive}">
+                            <div class="combination-item text-center">
+                                <p><strong>Snack:</strong> ${combo[1] || 'N/A'}</p>
+                                <img src="${combo.snackPhoto || '#'}" alt="Snack Image" class="img-fluid" style="max-height: 150px;">
+                                <p><strong>Drink:</strong> ${combo[2] || 'N/A'}</p>
+                                <img src="${combo.drinkPhoto || '#'}" alt="Drink Image" class="img-fluid" style="max-height: 150px;">
+                            </div>
+                        </div>
+                    `;
+                    carouselInner.innerHTML += combinationItem;
+                });
+            })
+            .catch(error => {
+                const carouselInner = document.getElementById('popular-combinations');
+                carouselInner.innerHTML = `<div class="text-danger text-center">Error: ${error.message}</div>`;
+            });
+
+            // Load posts for the feed
+            fetch('/api/posts')
+                .then(response => response.json())
+                .then(data => {
+                    const feed = document.getElementById('feed');
+                    feed.innerHTML = ''; // Clear loading message
+
+                    if (data.error) {
+                        feed.innerHTML = `<div class="text-danger text-center">${data.error}</div>`;
+                        return;
+                    }
+
+                    if (data.length === 0) {
+                        feed.innerHTML = '<div class="text-center">No posts available.</div>';
+                        return;
+                    }
+
+                    data.forEach(post => {
+                        const postCard = `
+                            <div class="post-card">
+                                <div class="post-author">${post[2]}</div>
+                                <div class="post-date">${new Date(post[4]).toLocaleString()}</div>
+                                <div class="post-content">${post[3]}</div>
+                            </div>
+                        `;
+                        feed.innerHTML += postCard;
+                    });
+                })
+                .catch(error => {
+                    const feed = document.getElementById('feed');
+                    feed.innerHTML = `<div class="text-danger text-center">Error: ${error.message}</div>`;
+                });
+        });
+    </script>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

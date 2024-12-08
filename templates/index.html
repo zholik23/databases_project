@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Stream with YOLO</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f2f5;
+        }
+
+        video, img {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            max-width: 100%;
+            margin: 10px auto;
+        }
+
+        .feed-container {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: flex-start;
+            max-width: 1000px;
+            margin: auto;
+            padding-top: 20px;
+        }
+
+        .camera-section {
+            flex: 1;
+        }
+
+        .recommendations-section {
+            width: 300px;
+            margin-left: 20px;
+        }
+
+        .recommendations {
+            margin-top: 20px;
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .recommendation-item {
+            display: inline-block;
+            margin: 10px;
+            text-align: center;
+        }
+
+        .recommendation-item img {
+            max-width: 100px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            margin-bottom: 5px;
+        }
+
+        .navbar {
+            margin-bottom: 20px;
+        }
+
+        .login-btn {
+            margin-left: auto;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">SNACKPICK</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/">Main</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" onclick="window.location.href='/ai-picker'">AI picker</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" onclick="window.location.href='/home'">Blogs</a>
+                    </li>
+                </ul> 
+                {% if logged_in %}
+                    <button class="btn btn-outline-danger login-btn" type="button" onclick="window.location.href='/logout'">Logout</button>
+                {% else %}
+                    <button class="btn btn-outline-success login-btn" type="button" onclick="window.location.href='/login'">Login</button>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <h1>Live Camera Stream with YOLO</h1>
+    <div class="feed-container">
+        <div class="camera-section">
+            <video id="video" autoplay></video>
+            <canvas id="canvas" style="display:none;"></canvas>
+
+            <h2>Processed Frame</h2>
+            <img id="processed-frame" src="" alt="Processed Frame" />
+
+            <h2>Detected Emotion</h2>
+            <p id="emotion">Waiting for emotion detection...</p>
+        </div>
+
+        <div class="recommendations-section">
+            <h2>Recommendations</h2>
+            <div id="recommendations" class="recommendations">No recommendations yet.</div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const processedFrameImg = document.getElementById('processed-frame');
+        const emotionText = document.getElementById('emotion');
+        const recommendationsDiv = document.getElementById('recommendations');
+        const context = canvas.getContext('2d');
+
+        // Access user's camera
+        navigator.mediaDevices
+            .getUserMedia({ video: true })
+            .then((stream) => {
+                video.srcObject = stream;
+            })
+            .catch((err) => {
+                console.error("Error accessing camera:", err);
+            });
+
+        let frameCount = 0;
+        let lastEmotion = "";
+
+        function sendFrameToServer() {
+            frameCount++;
+            if (frameCount % 8 === 0) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                const frame = canvas.toDataURL('image/jpeg', 0.5);
+                fetch('/process-frame', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ frame: frame }),
+                })
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.processed_frame) {
+                        processedFrameImg.src = data.processed_frame;
+                    }
+                    if (data.detected_emotion) {
+                        emotionText.textContent = `Detected Emotion: ${data.detected_emotion}`;
+
+                        if (data.detected_emotion !== lastEmotion) {
+                            lastEmotion = data.detected_emotion;
+
+                            if (data.recommendations && data.recommendations.length > 0) {
+                                recommendationsDiv.innerHTML = '';
+                                data.recommendations.forEach((item) => {
+                                    const div = document.createElement('div');
+                                    div.className = 'recommendation-item';
+
+                                    let recommendationHTML = '';
+                                    
+                                    if (item.snack && item.snackPhoto) {
+                                        recommendationHTML += `
+                                            <img src="static/${item.snackPhoto}" alt="${item.snack}" />
+                                            <p>Snack: ${item.snack}</p>
+                                        `;
+                                    }
+
+                                    if (item.drink && item.drinkPhoto) {
+                                        recommendationHTML += `
+                                            <img src="static/${item.drinkPhoto}" alt="${item.drink}" />
+                                            <p>Drink: ${item.drink}</p>
+                                        `;
+                                    }
+
+                                    if (recommendationHTML) {
+                                        div.innerHTML = recommendationHTML;
+                                        recommendationsDiv.appendChild(div);
+                                    }
+                                });
+                            } else {
+                                recommendationsDiv.innerHTML = 'No recommendations available.';
+                            }
+                        }
+                    }
+                })
+                .catch((error) => {
+                    console.error("Error sending frame:", error);
+                });
+            }
+            requestAnimationFrame(sendFrameToServer);
+        }
+
+        video.addEventListener('playing', sendFrameToServer);
+    </script>
+</body>
+</html>
