@@ -61,7 +61,7 @@ Werkzeug==2.x
 Run the Application
 After setting up the database and environment variables, run the application with the following command:
 
-bash
+```bash
 py main.py
 This will start the application locally on http://127.0.0.1:5000/.
 ```bash
