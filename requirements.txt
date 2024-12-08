@@ -1,0 +1,5 @@
+Flask==2.x
+psycopg2==2.x
+opencv-python==4.x
+ultralytics==8.x
+Werkzeug==2.x
