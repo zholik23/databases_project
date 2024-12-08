@@ -44,3 +44,26 @@ An AI-powered blog platform where users can create, view, and manage blog posts.
 - **`/process-frame`**: Handle image frames for emotion detection and personalized recommendations.
 
 ---
+### Prerequisites
+- Python 3.x
+- PostgreSQL
+- YOLO (via the Ultralytics library)
+
+### Python Libraries
+Make sure to install the following libraries:
+Flask==2.x
+psycopg2==2.x
+opencv-python==4.x
+ultralytics==8.x
+Werkzeug==2.x
+
+---
+Run the Application
+After setting up the database and environment variables, run the application with the following command:
+
+bash
+py main.py
+This will start the application locally on http://127.0.0.1:5000/.
+```bash
+pip install -r requirements.txt
+---
